@@ -16,8 +16,9 @@ public class QueueController implements Controller {
 	this.listener = listener;
     }
 
-    public void pressBtn(Button btn) {
+    public void pressBtn(Button btn) throws InterruptedException {
 	listener.onButtonPress(btn);
+	Thread.sleep(1000);
 	listener.onButtonRelease(btn);
     }
 }

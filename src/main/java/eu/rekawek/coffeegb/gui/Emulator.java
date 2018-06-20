@@ -74,11 +74,11 @@ public class Emulator {
         } else {
             sound = new AudioSystemSoundOutput();
             display = new SwingDisplay(SCALE);
-            queueController = new QueueController(properties);
             guiController = null;
+            queueController = new QueueController(properties);
 //          guiController = new SwingController(properties);
             
-            JmsConfiguration queueConfig = new JmsConfiguration(BROKER_URL);           
+            JmsConfiguration queueConfig = new JmsConfiguration(BROKER_URL);
             Session session = queueConfig.getActiveMQSession();
             Queue queue = session.createQueue(INSTRUCTION_QUEUE);
             session.createConsumer(queue).setMessageListener(new ActionListener(queueController));

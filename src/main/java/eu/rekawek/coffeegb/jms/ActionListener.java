@@ -19,17 +19,47 @@ public class ActionListener implements MessageListener {
 	this.control = control;
     }
 
+    private Button parseButton(String button) {
+	Button btn = null;
+	switch (button) {
+	case "A":
+	    btn = Button.A;
+	    break;
+	case "B":
+	    btn = Button.B;
+	    break;
+	case "UP":
+	    btn = Button.UP;
+	    break;
+	case "DOWN":
+	    btn = Button.DOWN;
+	    break;
+	case "LEFT":
+	    btn = Button.LEFT;
+	    break;
+	case "RIGHT":
+	    btn = Button.RIGHT;
+	    break;
+	case "START":
+	    btn = Button.START;
+	    break;
+	case "SELECT":
+	    btn = Button.SELECT;
+	    break;
+	}
+	return btn;
+    }
+
     public void onMessage(Message message) {
 	TextMessage textMessage = (TextMessage) message;
 	try {
-	    LOG.info("New Action input detected: {}", textMessage.getText());
-
-	    if (textMessage.getText().equals("A")) {
-		this.control.pressBtn(Button.A);
+	    Button btn = this.parseButton(textMessage.getText());
+	    if(btn != null) {
+		this.control.pressBtn(btn);
 	    } else {
-		LOG.error("Unrecognised action input: {}", textMessage.getText());
+		LOG.error("Unrecognised Button Command: {}", textMessage.getText());
 	    }
-	} catch (JMSException e) {
+	} catch (JMSException | InterruptedException e) {
 	    e.printStackTrace();
 	}
     }
