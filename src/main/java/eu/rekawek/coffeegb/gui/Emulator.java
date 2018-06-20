@@ -32,7 +32,7 @@ public class Emulator {
 
     private static final int SCALE = 2;
     
-//    Move to configuration
+    // TODO: Add to external configuration
     private static final String BROKER_URL = "tcp://localhost:61616";
     private static final String INSTRUCTION_QUEUE = "GB_INSTRUCTION";
 
@@ -77,12 +77,7 @@ public class Emulator {
             guiController = null;
             queueController = new QueueController(properties);
 //          guiController = new SwingController(properties);
-            
-            JmsConfiguration queueConfig = new JmsConfiguration(BROKER_URL);
-            Session session = queueConfig.getActiveMQSession();
-            Queue queue = session.createQueue(INSTRUCTION_QUEUE);
-            session.createConsumer(queue).setMessageListener(new ActionListener(queueController));
-            queueConfig.getConnection().start();
+            configureJms(queueController);
                         
             gameboy = new Gameboy(options, rom, display, queueController, sound, serialEndpoint, console);
         }
@@ -164,5 +159,13 @@ public class Emulator {
         display.stop();
         gameboy.stop();
         mainWindow.dispose();
+    }
+    
+    private void configureJms(QueueController controllerHook) throws JMSException {
+        JmsConfiguration jmsConfig = new JmsConfiguration(BROKER_URL, INSTRUCTION_QUEUE);
+        jmsConfig.getSession().createConsumer(jmsConfig.getInstructionsQueue())
+        	.setMessageListener(new ActionListener(controllerHook));
+        jmsConfig.getConnection().start();
+    	
     }
 }
