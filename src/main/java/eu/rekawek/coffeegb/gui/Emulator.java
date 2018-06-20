@@ -1,23 +1,25 @@
 package eu.rekawek.coffeegb.gui;
 
-import eu.rekawek.coffeegb.Gameboy;
-import eu.rekawek.coffeegb.GameboyOptions;
-import eu.rekawek.coffeegb.controller.Controller;
-import eu.rekawek.coffeegb.cpu.SpeedMode;
-import eu.rekawek.coffeegb.debug.Console;
-import eu.rekawek.coffeegb.gpu.Display;
-import eu.rekawek.coffeegb.memory.cart.Cartridge;
-import eu.rekawek.coffeegb.serial.SerialEndpoint;
-import eu.rekawek.coffeegb.sound.SoundOutput;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import eu.rekawek.coffeegb.Gameboy;
+import eu.rekawek.coffeegb.GameboyOptions;
+import eu.rekawek.coffeegb.controller.Controller;
+import eu.rekawek.coffeegb.controller.QueueController;
+import eu.rekawek.coffeegb.cpu.SpeedMode;
+import eu.rekawek.coffeegb.debug.Console;
+import eu.rekawek.coffeegb.gpu.Display;
+import eu.rekawek.coffeegb.memory.cart.Cartridge;
+import eu.rekawek.coffeegb.serial.SerialEndpoint;
+import eu.rekawek.coffeegb.sound.SoundOutput;
 
 public class Emulator {
 
@@ -31,7 +33,8 @@ public class Emulator {
 
     private final SwingDisplay display;
 
-    private final SwingController controller;
+    private final SwingController guiController;
+    private final QueueController queueController;
 
     private final SerialEndpoint serialEndpoint;
 
@@ -54,13 +57,16 @@ public class Emulator {
         if (options.isHeadless()) {
             sound = null;
             display = null;
-            controller = null;
-            gameboy = new Gameboy(options, rom, Display.NULL_DISPLAY, Controller.NULL_CONTROLLER, SoundOutput.NULL_OUTPUT, serialEndpoint, console);
+            guiController = null;
+            queueController = new QueueController(properties);
+            gameboy = new Gameboy(options, rom, Display.NULL_DISPLAY, queueController, SoundOutput.NULL_OUTPUT, serialEndpoint, console);
         } else {
             sound = new AudioSystemSoundOutput();
             display = new SwingDisplay(SCALE);
-            controller = new SwingController(properties);
-            gameboy = new Gameboy(options, rom, display, controller, sound, serialEndpoint, console);
+//            guiController = new SwingController(properties);
+            guiController = null;
+            queueController = new QueueController(properties);
+            gameboy = new Gameboy(options, rom, display, queueController, sound, serialEndpoint, console);
         }
         console.ifPresent(c -> c.init(gameboy));
     }
@@ -128,7 +134,9 @@ public class Emulator {
         mainWindow.setVisible(true);
         mainWindow.pack();
 
-        mainWindow.addKeyListener(controller);
+        if(options.isHeadless()) {
+            mainWindow.addKeyListener(guiController);
+        }
 
         new Thread(display).start();
         new Thread(gameboy).start();
