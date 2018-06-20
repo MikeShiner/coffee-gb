@@ -1,10 +1,15 @@
 package eu.rekawek.coffeegb.gui;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
+import javax.swing.JPanel;
 
 import eu.rekawek.coffeegb.gpu.Display;
 
-public class ScreenshotDisplay implements Display, Runnable {
+public class ScreenshotDisplay extends JPanel implements Display, Runnable {
 
     public static final int DISPLAY_WIDTH = 160;
 
@@ -25,6 +30,19 @@ public class ScreenshotDisplay implements Display, Runnable {
     private boolean doRefresh;
 
     private int i;
+    
+    private int frameCounter = 0;
+    
+    public ScreenshotDisplay() {
+        super();
+//        GraphicsConfiguration gfxConfig = GraphicsEnvironment.
+//                getLocalGraphicsEnvironment().getDefaultScreenDevice().
+//                getDefaultConfiguration();
+//        img = gfxConfig.createCompatibleImage(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+        img = new BufferedImage(DISPLAY_WIDTH, DISPLAY_HEIGHT, BufferedImage.TYPE_INT_RGB);
+        rgb = new int[DISPLAY_WIDTH * DISPLAY_HEIGHT];
+        this.scale = scale;
+    }
 
 	@Override
     public void putDmgPixel(int color) {
@@ -73,5 +91,44 @@ public class ScreenshotDisplay implements Display, Runnable {
     public void disableLcd() {
         enabled = false;
     }
+    
+    @Override
+    public void run() {
+        doStop = false;
+        doRefresh = false;
+        enabled = true;
+        while (!doStop) {
+            synchronized (this) {
+                try {
+                    wait(1);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
 
+            if (doRefresh) {
+                img.setRGB(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, rgb, 0, DISPLAY_WIDTH);
+                this.frameCounter++;
+                
+                if(this.frameCounter == 10) {
+                	try {
+						ImageIO.write(img, "jpg", new File("test.jpg"));
+						
+						 System.out.println("Frame painted: " + this.frameCounter);
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} finally {
+						this.frameCounter = 0;
+					}
+                }
+
+                synchronized (this) {
+                    i = 0;
+                    doRefresh = false;
+                    notifyAll();
+                }
+            }
+        }
+    }
 }
