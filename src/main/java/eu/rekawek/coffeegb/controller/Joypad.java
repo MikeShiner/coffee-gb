@@ -6,16 +6,20 @@ import eu.rekawek.coffeegb.cpu.InterruptManager;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Joypad implements AddressSpace {
 
     private Set<ButtonListener.Button> buttons = new HashSet<>();
-
+    private static final Logger LOG = LoggerFactory.getLogger(Joypad.class);
     private int p1;
 
     public Joypad(InterruptManager interruptManager, Controller controller) {
         controller.setButtonListener(new ButtonListener() {
             @Override
             public void onButtonPress(Button button) {
+        	LOG.info("Pressing Button: {}", button);
                 interruptManager.requestInterrupt(InterruptManager.InterruptType.P10_13);
                 buttons.add(button);
             }

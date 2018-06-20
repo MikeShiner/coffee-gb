@@ -7,16 +7,23 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+
+import javax.jms.JMSException;
+import javax.jms.MessageConsumer;
+import javax.jms.Queue;
+import javax.jms.Session;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+
 import eu.rekawek.coffeegb.Gameboy;
 import eu.rekawek.coffeegb.GameboyOptions;
-import eu.rekawek.coffeegb.controller.Controller;
 import eu.rekawek.coffeegb.controller.QueueController;
 import eu.rekawek.coffeegb.cpu.SpeedMode;
 import eu.rekawek.coffeegb.debug.Console;
 import eu.rekawek.coffeegb.gpu.Display;
+import eu.rekawek.coffeegb.jms.ActionListener;
+import eu.rekawek.coffeegb.jms.JmsConfiguration;
 import eu.rekawek.coffeegb.memory.cart.Cartridge;
 import eu.rekawek.coffeegb.serial.SerialEndpoint;
 import eu.rekawek.coffeegb.sound.SoundOutput;
@@ -24,6 +31,9 @@ import eu.rekawek.coffeegb.sound.SoundOutput;
 public class Emulator {
 
     private static final int SCALE = 2;
+    
+//    Move to configuration
+    private static final String BROKER_URL = "tcp://localhost:61616";
 
     private final GameboyOptions options;
 
@@ -46,7 +56,7 @@ public class Emulator {
 
     private JFrame mainWindow;
 
-    public Emulator(String[] args, Properties properties) throws IOException {
+    public Emulator(String[] args, Properties properties) throws IOException, JMSException {
         options = parseArgs(args);
         rom = new Cartridge(options);
         speedMode = new SpeedMode();
@@ -63,9 +73,20 @@ public class Emulator {
         } else {
             sound = new AudioSystemSoundOutput();
             display = new SwingDisplay(SCALE);
-//            guiController = new SwingController(properties);
-            guiController = null;
             queueController = new QueueController(properties);
+//            guiController = new SwingController(properties);
+            JmsConfiguration queueConfig = new JmsConfiguration(BROKER_URL);
+
+//          Configure Queue
+            Session session = queueConfig.getActiveMQSession();
+            Queue queue = session.createQueue("instructionQueue");
+            session.createQueue("instructionQueue");
+            MessageConsumer consumer = session.createConsumer(queue);
+            consumer.setMessageListener(new ActionListener(queueController));
+            queueConfig.getConnection().start();
+            
+            
+            guiController = null;
             gameboy = new Gameboy(options, rom, display, queueController, sound, serialEndpoint, console);
         }
         console.ifPresent(c -> c.init(gameboy));
