@@ -34,6 +34,7 @@ public class Emulator {
     
 //    Move to configuration
     private static final String BROKER_URL = "tcp://localhost:61616";
+    private static final String INSTRUCTION_QUEUE = "GB_INSTRUCTION";
 
     private final GameboyOptions options;
 
@@ -74,19 +75,15 @@ public class Emulator {
             sound = new AudioSystemSoundOutput();
             display = new SwingDisplay(SCALE);
             queueController = new QueueController(properties);
-//            guiController = new SwingController(properties);
-            JmsConfiguration queueConfig = new JmsConfiguration(BROKER_URL);
-
-//          Configure Queue
-            Session session = queueConfig.getActiveMQSession();
-            Queue queue = session.createQueue("instructionQueue");
-            session.createQueue("instructionQueue");
-            MessageConsumer consumer = session.createConsumer(queue);
-            consumer.setMessageListener(new ActionListener(queueController));
-            queueConfig.getConnection().start();
-            
-            
             guiController = null;
+//          guiController = new SwingController(properties);
+            
+            JmsConfiguration queueConfig = new JmsConfiguration(BROKER_URL);           
+            Session session = queueConfig.getActiveMQSession();
+            Queue queue = session.createQueue(INSTRUCTION_QUEUE);
+            session.createConsumer(queue).setMessageListener(new ActionListener(queueController));
+            queueConfig.getConnection().start();
+                        
             gameboy = new Gameboy(options, rom, display, queueController, sound, serialEndpoint, console);
         }
         console.ifPresent(c -> c.init(gameboy));
