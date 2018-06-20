@@ -12,13 +12,15 @@ public class JmsConfiguration {
 	private Connection connection;
 	private Session session;
 	private Queue instructionsQueue;
+	private Queue displayQueue;
 
-	public JmsConfiguration(String brokerUrl, String instructionsQueueName) throws JMSException {
+	public JmsConfiguration(String brokerUrl, String instructionsQueueName, String displayQueueName) throws JMSException {
 		ConnectionFactory connectionFactory = new ActiveMQConnectionFactory(brokerUrl);
 		this.connection = connectionFactory.createConnection();
 
 		this.session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		this.instructionsQueue = session.createQueue(instructionsQueueName);
+		this.displayQueue = session.createQueue(displayQueueName);
 	}
 
 	public Connection getConnection() {
@@ -27,6 +29,14 @@ public class JmsConfiguration {
 
 	public Session getSession() {
 		return session;
+	}
+
+	public Queue getDisplayQueue() {
+		return displayQueue;
+	}
+
+	public void setDisplayQueue(Queue displayQueue) {
+		this.displayQueue = displayQueue;
 	}
 
 	public void setSession(Session session) {

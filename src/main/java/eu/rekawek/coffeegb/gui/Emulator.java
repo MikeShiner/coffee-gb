@@ -9,9 +9,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import javax.jms.JMSException;
-import javax.jms.MessageConsumer;
-import javax.jms.Queue;
-import javax.jms.Session;
+import javax.jms.MessageProducer;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -35,6 +33,7 @@ public class Emulator {
 	// TODO: Add to external configuration
 	private static final String BROKER_URL = "tcp://localhost:61616";
 	private static final String INSTRUCTION_QUEUE = "GB_INSTRUCTION";
+	private static final String DISPLAY_QUEUE = "GB_DISPLAY";
 
 	private final GameboyOptions options;
 
@@ -42,12 +41,14 @@ public class Emulator {
 
 	private final AudioSystemSoundOutput sound;
 
-	private final SwingDisplay display;
+	private final SwingDisplay swingDisplay;
+	private final ScreenshotDisplay screenshotDisplay;
 
 	private final SwingController guiController;
 	private final QueueController queueController;
 
 	private final SerialEndpoint serialEndpoint;
+	
 
 	private final SpeedMode speedMode;
 
@@ -55,6 +56,8 @@ public class Emulator {
 
 	private final Optional<Console> console;
 
+	private final JmsConfiguration jmsConfig;
+	
 	private JFrame mainWindow;
 
 	public Emulator(String[] args, Properties properties) throws IOException, JMSException {
@@ -64,24 +67,27 @@ public class Emulator {
 		serialEndpoint = SerialEndpoint.NULL_ENDPOINT;
 		console = options.isDebug() ? Optional.of(new Console()) : Optional.empty();
 		console.map(Thread::new).ifPresent(Thread::start);
-
+		
+		jmsConfig = new JmsConfiguration(BROKER_URL, INSTRUCTION_QUEUE, DISPLAY_QUEUE);
+		MessageProducer displayProducer = jmsConfig.getSession().createProducer(jmsConfig.getDisplayQueue());
 		if (options.isHeadless()) {
 			sound = null;
-			display = null;
+			swingDisplay = null;
+			screenshotDisplay = new ScreenshotDisplay(jmsConfig.getSession(), displayProducer);
 			guiController = null;
 			queueController = new QueueController(properties);
-			gameboy = new Gameboy(options, rom, Display.NULL_DISPLAY, queueController, SoundOutput.NULL_OUTPUT,
-					serialEndpoint, console);
+			gameboy = new Gameboy(options, rom, Display.NULL_DISPLAY, queueController, SoundOutput.NULL_OUTPUT, serialEndpoint, console);
 		} else {
 			sound = new AudioSystemSoundOutput();
-			display = new SwingDisplay(SCALE);
+//			display = new SwingDisplay(SCALE);
+			swingDisplay = null;
+			screenshotDisplay = new ScreenshotDisplay(jmsConfig.getSession(), displayProducer);
 			guiController = null;
 			queueController = new QueueController(properties);
 			// guiController = new SwingController(properties);
 			configureJms(queueController);
 
-			gameboy = new Gameboy(options, rom, new ScreenshotDisplay(), queueController, sound, serialEndpoint,
-					console);
+			gameboy = new Gameboy(options, rom, screenshotDisplay, queueController, sound, serialEndpoint, console);
 		}
 		console.ifPresent(c -> c.init(gameboy));
 	}
@@ -139,35 +145,38 @@ public class Emulator {
 
 	private void startGui() {
 		if (options.isHeadless()) {
-			display.setPreferredSize(new Dimension(160 * SCALE, 144 * SCALE));
+			swingDisplay.setPreferredSize(new Dimension(160 * SCALE, 144 * SCALE));
 
 			mainWindow = new JFrame("Coffee GB: " + rom.getTitle());
 			mainWindow.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 			mainWindow.setLocationRelativeTo(null);
 
-			mainWindow.setContentPane(display);
+			mainWindow.setContentPane(swingDisplay);
 			mainWindow.setResizable(false);
 			mainWindow.setVisible(true);
 			mainWindow.pack();
 
 			mainWindow.addKeyListener(guiController);
+			new Thread(swingDisplay).start();
+		} else {
+			new Thread(screenshotDisplay).start();
 		}
-
-		new Thread(display).start();
 		new Thread(gameboy).start();
 	}
 
 	private void stopGui() {
-		display.stop();
+		if (options.isHeadless()) {
+			swingDisplay.stop();		
+		} else {
+			screenshotDisplay.stop();
+		}
 		gameboy.stop();
 		mainWindow.dispose();
 	}
 
 	private void configureJms(QueueController controllerHook) throws JMSException {
-		JmsConfiguration jmsConfig = new JmsConfiguration(BROKER_URL, INSTRUCTION_QUEUE);
 		jmsConfig.getSession().createConsumer(jmsConfig.getInstructionsQueue())
 				.setMessageListener(new ActionListener(controllerHook));
 		jmsConfig.getConnection().start();
-
 	}
 }
