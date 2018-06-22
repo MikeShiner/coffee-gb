@@ -121,7 +121,6 @@ public class ScreenshotDisplay extends JPanel implements Display, Runnable {
 
 				if (this.frameCounter == 10) {
 					encodeAndSend();
-					System.out.println("Frame painted: " + this.frameCounter);
 					this.frameCounter = 0;
 				}
 
